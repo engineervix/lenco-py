@@ -1,3 +1,7 @@
+# Changelog
+
+All notable changes to this project will be documented in this file. See [Commitizen](https://commitizen-tools.github.io/commitizen/) for commit guidelines.
+
 ## [0.1.0](https://github.com/engineervix/lenco-py/releases/tag/v0.1.0) (2026-08-27)
 
 ### 🚀 Features
