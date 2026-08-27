@@ -46,6 +46,18 @@ class LencoValidationError(LencoAPIError):
     """The request was rejected as invalid (400/422)."""
 
 
+class LencoDuplicateReferenceError(LencoValidationError):
+    """The ``reference`` was already used for a previous request (400).
+
+    Lenco rejects a resubmitted reference outright rather than
+    double-executing the transfer/collection it named — but that also means
+    a connection failure on the *first* attempt can surface this error on
+    retry even though the original request succeeded. Don't treat it as a
+    plain failure: call ``get_by_reference`` to find out what actually
+    happened before deciding to send again with a new reference.
+    """
+
+
 class LencoRateLimitError(LencoAPIError):
     """Too many requests (429)."""
 

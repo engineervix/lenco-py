@@ -15,6 +15,7 @@ from .exceptions import (
     LencoAPIError,
     LencoAuthError,
     LencoConnectionError,
+    LencoDuplicateReferenceError,
     LencoNotFoundError,
     LencoRateLimitError,
     LencoServerError,
@@ -65,6 +66,8 @@ def raise_for_response(response: httpx.Response) -> None:
         cls = LencoAuthError
     elif response.status_code == 404:
         cls = LencoNotFoundError
+    elif response.status_code == 400 and message == "Duplicate reference":
+        cls = LencoDuplicateReferenceError
     elif response.status_code in (400, 422) or failed_envelope:
         cls = LencoValidationError
     elif response.status_code == 429:
