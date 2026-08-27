@@ -28,6 +28,7 @@ Not affiliated with or endorsed by Lenco.
 - [Django](#django)
 - [Webhooks](#webhooks)
 - [Card collections (PCI DSS)](#card-collections-pci-dss)
+- [Phone normalization](#phone-normalization)
 - [Error handling](#error-handling)
 - [Retries](#retries)
 - [Development](#development)
@@ -43,12 +44,14 @@ Not affiliated with or endorsed by Lenco.
 - Webhook signature verification with the standard library only
 - JWE card-payload encryption as an optional extra
 - Automatic retry with jittered backoff for transient failures — GET only, never POST
+- Zambian phone number normalization as an optional extra
 
 ## Installation
 
 ```bash
 pip install lenco-py
-pip install "lenco-py[card]"   # adds jwcrypto for card collections
+pip install "lenco-py[card]"    # adds jwcrypto for card collections
+pip install "lenco-py[phone]"   # adds phonenumbers for phone normalization
 ```
 
 ## Quickstart
@@ -190,6 +193,19 @@ if result.collection.status == "3ds-auth-required":
 ```
 
 `encrypt()` also accepts a typed `CardCollectionPayload` instead of a dict, so a typo'd field name fails at construction instead of as an opaque 400 — see [Card collections](https://engineervix.github.io/lenco-py/guide/card-collections).
+
+## Phone normalization
+
+Lenco's mobile money APIs expect a Zambian number in local `0XXXXXXXXX` shape. `normalize_zambian_phone()` gets you there from `+260...`, `260...`, or a spaced local number, and rejects anything that isn't a valid Zambian mobile number (including landlines):
+
+```python
+from lenco.phone import normalize_zambian_phone
+
+normalize_zambian_phone("+260966123456")  # "0966123456"
+normalize_zambian_phone("0211234567")     # ValueError — landline, not mobile
+```
+
+It's standalone — no client involved — so call it wherever you collect a phone number. See [Phone normalization](https://engineervix.github.io/lenco-py/guide/phone-normalization).
 
 ## Error handling
 
