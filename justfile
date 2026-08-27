@@ -32,4 +32,4 @@ first-release:
   cz changelog --unreleased-version "v$version"
   git add CHANGELOG.md
   git commit -m "chore(release): seed CHANGELOG.md for v$version"
-  git tag "v$version"
+  git tag -a "v$version" -m "v$version"
