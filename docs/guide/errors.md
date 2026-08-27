@@ -5,16 +5,17 @@ the base class as a safety net.
 
 ## Exception hierarchy
 
-| Exception               | Raised when                                          |
-| ----------------------- | ---------------------------------------------------- |
-| `LencoAuthError`        | 401 — missing or invalid API token                   |
-| `LencoNotFoundError`    | 404 — the resource does not exist                    |
-| `LencoValidationError`  | 400/422 — the request was rejected as invalid        |
-| `LencoRateLimitError`   | 429 — too many requests                              |
-| `LencoServerError`      | 5xx — an error on Lenco's end                        |
-| `LencoConnectionError`  | Network failure or timeout before a response         |
-| `LencoAPIError`         | Any other API error (base class for the HTTP errors) |
-| `LencoError`            | Base class for everything, including the above       |
+| Exception                      | Raised when                                              |
+| ------------------------------ | --------------------------------------------------------- |
+| `LencoAuthError`               | 401 — missing or invalid API token                        |
+| `LencoNotFoundError`           | 404 — the resource does not exist                         |
+| `LencoDuplicateReferenceError` | 400 — a `reference` was already used (subtype of `LencoValidationError`, see "Retrying safely" below) |
+| `LencoValidationError`         | 400/422 — the request was rejected as invalid             |
+| `LencoRateLimitError`          | 429 — too many requests                                   |
+| `LencoServerError`             | 5xx — an error on Lenco's end                              |
+| `LencoConnectionError`         | Network failure or timeout before a response               |
+| `LencoAPIError`                | Any other API error (base class for the HTTP errors)       |
+| `LencoError`                   | Base class for everything, including the above             |
 
 Every `LencoAPIError` carries:
 
@@ -75,3 +76,22 @@ except LencoConnectionError:
     existing = client.transfers.get_by_reference("order-1001")
     ...
 ```
+
+Lenco rejects a resubmitted reference outright (400, "Duplicate reference")
+rather than double-executing the transfer or collection it named — that's
+good news, but it means the *first* attempt may have actually succeeded even
+though this one failed. Catch `LencoDuplicateReferenceError` specifically to
+tell that case apart from an ordinary validation failure:
+
+```python
+try:
+    transfer = client.transfers.to_mobile_money(..., reference="order-1001")
+except LencoDuplicateReferenceError:
+    # Not necessarily a failure — the original request may have gone
+    # through. Find out before deciding whether to send again.
+    existing = client.transfers.get_by_reference("order-1001")
+    ...
+```
+
+The SDK's own transport never retries a POST automatically for this reason —
+see [Retries](/guide/retries) for what it does retry.

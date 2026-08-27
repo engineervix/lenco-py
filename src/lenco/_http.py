@@ -5,8 +5,13 @@ mapping. Resource classes never touch httpx directly — this is the only
 module that does (orthogonality + reversibility: swap transport here).
 """
 
+import asyncio
 import platform
+import random
+import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import httpx
@@ -15,6 +20,7 @@ from .exceptions import (
     LencoAPIError,
     LencoAuthError,
     LencoConnectionError,
+    LencoDuplicateReferenceError,
     LencoNotFoundError,
     LencoRateLimitError,
     LencoServerError,
@@ -65,6 +71,8 @@ def raise_for_response(response: httpx.Response) -> None:
         cls = LencoAuthError
     elif response.status_code == 404:
         cls = LencoNotFoundError
+    elif response.status_code == 400 and message == "Duplicate reference":
+        cls = LencoDuplicateReferenceError
     elif response.status_code in (400, 422) or failed_envelope:
         cls = LencoValidationError
     elif response.status_code == 429:
@@ -110,6 +118,116 @@ class Envelope:
         )
 
 
+_RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+_BACKOFF_BASE_SECONDS = 1.0
+_BACKOFF_CAP_SECONDS = 30.0
+
+
+def _backoff_delay(attempt: int) -> float:
+    """Full jitter: ``random_between(0, min(cap, base * 2 ** attempt))``.
+
+    Spreads concurrent clients' retries out in time instead of having them
+    all retry in lockstep during an outage (a "retry storm").
+    """
+    return random.uniform(
+        0, min(_BACKOFF_CAP_SECONDS, _BACKOFF_BASE_SECONDS * 2**attempt)
+    )
+
+
+def _retry_after_seconds(response: httpx.Response) -> float | None:
+    """Parse ``Retry-After`` (delta-seconds or an HTTP-date) if present.
+
+    Returns ``None`` when the header is absent or unparseable, so the
+    caller falls back to the exponential formula. Capped at
+    ``_BACKOFF_CAP_SECONDS`` — a misbehaving or malicious server sending an
+    absurd value must not hang the client.
+    """
+    value = response.headers.get("Retry-After")
+    if value is None:
+        return None
+    try:
+        seconds = float(value)
+    except ValueError:
+        seconds = None
+    if seconds is None:
+        try:
+            target = parsedate_to_datetime(value)
+        except (TypeError, ValueError):
+            return None
+        if target.tzinfo is None:
+            target = target.replace(tzinfo=UTC)
+        seconds = (target - datetime.now(UTC)).total_seconds()
+    return max(0.0, min(_BACKOFF_CAP_SECONDS, seconds))
+
+
+def _delay_for_retry(attempt: int, response: httpx.Response) -> float:
+    """The server's ``Retry-After`` wins when present — it knows better
+    than our guess — with a small jitter on top so many clients waiting
+    out the same window don't all wake up at once."""
+    retry_after = _retry_after_seconds(response)
+    if retry_after is not None:
+        return retry_after + random.uniform(0, retry_after * 0.1)
+    return _backoff_delay(attempt)
+
+
+class _RetryTransport(httpx.HTTPTransport):
+    """Retries a request whose response status is in the retryable set."""
+
+    def __init__(self, max_retries: int = 3) -> None:
+        super().__init__()
+        self._max_retries = max_retries
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        attempts = 0
+        while True:
+            try:
+                response = super().handle_request(request)
+            except httpx.TransportError:
+                if request.method != "GET" or attempts >= self._max_retries:
+                    raise
+                time.sleep(_backoff_delay(attempts))
+                attempts += 1
+                continue
+
+            if (
+                request.method != "GET"
+                or attempts >= self._max_retries
+                or response.status_code not in _RETRYABLE_STATUS_CODES
+            ):
+                return response
+            time.sleep(_delay_for_retry(attempts, response))
+            attempts += 1
+
+
+class _AsyncRetryTransport(httpx.AsyncHTTPTransport):
+    """Async counterpart to :class:`_RetryTransport` — same policy."""
+
+    def __init__(self, max_retries: int = 3) -> None:
+        super().__init__()
+        self._max_retries = max_retries
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        attempts = 0
+        while True:
+            try:
+                response = await super().handle_async_request(request)
+            except httpx.TransportError:
+                if request.method != "GET" or attempts >= self._max_retries:
+                    raise
+                await asyncio.sleep(_backoff_delay(attempts))
+                attempts += 1
+                continue
+
+            if (
+                request.method != "GET"
+                or attempts >= self._max_retries
+                or response.status_code not in _RETRYABLE_STATUS_CODES
+            ):
+                return response
+            await asyncio.sleep(_delay_for_retry(attempts, response))
+            attempts += 1
+
+
 class SyncTransport:
     """Blocking transport backed by ``httpx.Client``."""
 
@@ -119,10 +237,14 @@ class SyncTransport:
         *,
         base_url: str = DEFAULT_BASE_URL,
         timeout: float = DEFAULT_TIMEOUT,
+        max_retries: int = 3,
         client: httpx.Client | None = None,
     ) -> None:
         self._client = client or httpx.Client(
-            base_url=base_url, headers=_headers(token), timeout=timeout
+            base_url=base_url,
+            headers=_headers(token),
+            timeout=timeout,
+            transport=_RetryTransport(max_retries=max_retries),
         )
 
     def request(
@@ -161,10 +283,14 @@ class AsyncTransport:
         *,
         base_url: str = DEFAULT_BASE_URL,
         timeout: float = DEFAULT_TIMEOUT,
+        max_retries: int = 3,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self._client = client or httpx.AsyncClient(
-            base_url=base_url, headers=_headers(token), timeout=timeout
+            base_url=base_url,
+            headers=_headers(token),
+            timeout=timeout,
+            transport=_AsyncRetryTransport(max_retries=max_retries),
         )
 
     async def request(

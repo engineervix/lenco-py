@@ -29,7 +29,12 @@ class LencoClient:
         token: Your Lenco API token (secret key). Required.
         base_url: API base URL; override only for testing.
         timeout: Request timeout in seconds.
-        http_client: Bring-your-own ``httpx.Client`` (optional).
+        max_retries: Retries for a failed GET (connection error, or 429/5xx
+            response), with jittered exponential backoff. POST is never
+            auto-retried — see docs/guide/errors.md#retrying-safely.
+            ``0`` disables retries.
+        http_client: Bring-your-own ``httpx.Client`` (optional) — bypasses
+            this retry behavior entirely; you own retries on it yourself.
 
     Example:
         >>> with LencoClient(token="...") as client:
@@ -42,12 +47,17 @@ class LencoClient:
         *,
         base_url: str = DEFAULT_BASE_URL,
         timeout: float = 30.0,
+        max_retries: int = 3,
         http_client: httpx.Client | None = None,
     ) -> None:
         if not token:
             raise ValueError("A Lenco API token is required")
         transport = SyncTransport(
-            token, base_url=base_url, timeout=timeout, client=http_client
+            token,
+            base_url=base_url,
+            timeout=timeout,
+            max_retries=max_retries,
+            client=http_client,
         )
         self._transport = transport
         self.accounts = AccountsResource(transport)
@@ -87,12 +97,17 @@ class AsyncLencoClient:
         *,
         base_url: str = DEFAULT_BASE_URL,
         timeout: float = 30.0,
+        max_retries: int = 3,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
         if not token:
             raise ValueError("A Lenco API token is required")
         transport = AsyncTransport(
-            token, base_url=base_url, timeout=timeout, client=http_client
+            token,
+            base_url=base_url,
+            timeout=timeout,
+            max_retries=max_retries,
+            client=http_client,
         )
         self._transport = transport
         self.accounts = AsyncAccountsResource(transport)
