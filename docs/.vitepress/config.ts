@@ -49,6 +49,7 @@ export default defineConfig({
           { text: "Getting started", link: "/guide/getting-started" },
           { text: "Handling webhooks", link: "/guide/webhooks" },
           { text: "Error handling", link: "/guide/errors" },
+          { text: "Retries", link: "/guide/retries" },
           { text: "Framework recipes", link: "/guide/frameworks" },
           { text: "Card collections", link: "/guide/card-collections" },
         ],

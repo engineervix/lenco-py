@@ -29,6 +29,7 @@ Not affiliated with or endorsed by Lenco.
 - [Webhooks](#webhooks)
 - [Card collections (PCI DSS)](#card-collections-pci-dss)
 - [Error handling](#error-handling)
+- [Retries](#retries)
 - [Development](#development)
 - [Contributing](#contributing)
 - [License](#license)
@@ -41,6 +42,7 @@ Not affiliated with or endorsed by Lenco.
 - Fully typed (mypy strict), pydantic v2 models
 - Webhook signature verification with the standard library only
 - JWE card-payload encryption as an optional extra
+- Automatic retry with jittered backoff for transient failures — GET only, never POST
 
 ## Installation
 
@@ -210,6 +212,20 @@ except LencoError:
 ```
 
 Note the envelope gotcha: Lenco can return HTTP 200 with `{"status": false}`. The SDK treats that as an error and raises — you never have to check the envelope yourself. But for **transfer and collection initiation**, a `200` with `"status": true` means the request was *accepted*. The outcome lives in `transfer.status` / `collection.status` (`"successful"`, `"pending"`, `"failed"`, `"pay-offline"`, …).
+
+## Retries
+
+A failed `GET` — a connection error, or a `429`/`5xx` response — is retried automatically: 3 attempts by default, jittered exponential backoff, honoring `Retry-After` on a `429`.
+
+```python
+with LencoClient(token="...", max_retries=5) as client:
+    ...
+
+with LencoClient(token="...", max_retries=0) as client:  # disable retries
+    ...
+```
+
+`POST` (transfer/collection initiation, card charges) is **never** auto-retried — Lenco has no idempotency keys, so a blind retry risks a second transfer instead of a safe re-read. Catch `LencoDuplicateReferenceError` to retry one safely yourself — see [Retrying safely](https://engineervix.github.io/lenco-py/guide/errors#retrying-safely) and [Retries](https://engineervix.github.io/lenco-py/guide/retries).
 
 ## Development
 
