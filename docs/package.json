@@ -1,0 +1,15 @@
+{
+  "name": "lenco-py-docs",
+  "private": true,
+  "type": "module",
+  "description": "Documentation toolchain for lenco-py (the Python package itself is built with flit — see pyproject.toml).",
+  "scripts": {
+    "dev": "vitepress dev .",
+    "build": "vitepress build .",
+    "preview": "vitepress preview ."
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4",
+    "vitepress-plugin-llms": "^1.13.5"
+  }
+}

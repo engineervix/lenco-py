@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - run: pip install -e ".[dev]"
+
+      - run: ruff check src tests
+
+      - run: black --check src tests
+
+      - run: mypy src
+
+      - run: pytest
+
+      - name: Upload coverage data
+        if: matrix.python-version == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: covdata
+          path: coverage.json
+
+  coverage:
+    name: Coverage badge
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.repository == 'engineervix/lenco-py' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: covdata
+
+      - name: Extract total coverage
+        run: |
+          export TOTAL=$(python3 -c "import json; print(round(json.load(open('coverage.json'))['totals']['percent_covered']))")
+          echo "total=$TOTAL" >> "$GITHUB_ENV"
+          echo "### Coverage: ${TOTAL}%" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create coverage badge
+        uses: schneegans/dynamic-badges-action@v1.8.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: 0eecb6340925b0a54b20a4048cc5a5e0
+          filename: covbadge.json
+          label: Coverage
+          message: ${{ env.total }}%
+          minColorRange: 50
+          maxColorRange: 90
+          valColorRange: ${{ env.total }}
+          namedLogo: pytest

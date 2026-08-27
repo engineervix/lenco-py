@@ -1,0 +1,18 @@
+pre-commit:
+  parallel: true
+  commands:
+    ruff:
+      glob: "*.py"
+      run: ruff check {staged_files}
+    black:
+      glob: "*.py"
+      run: black --check {staged_files}
+    mypy:
+      glob: "src/**/*.py"
+      run: mypy src
+
+# Enforce Conventional Commits on every commit, however the message was authored.
+commit-msg:
+  commands:
+    "lint commit message":
+      run: cz check --commit-msg-file {1}

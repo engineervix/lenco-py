@@ -1,0 +1,28 @@
+{% for entry in tree %}
+
+{% set ver = entry.version[1:] if entry.version.startswith('v') else entry.version %}
+{% if loop.first and previous_tag %}
+{% set header = "[" ~ ver ~ "](" ~ repo_url ~ "/compare/" ~ previous_tag ~ "..." ~ entry.version ~ ")" %}
+{% elif entry.date %}
+{% set header = "[" ~ ver ~ "](" ~ repo_url ~ "/releases/tag/" ~ entry.version ~ ")" %}
+{% else %}
+{% set header = ver %}
+{% endif %}
+{% set date_suffix = " (" ~ entry.date ~ ")" if entry.date else "" %}
+## {{ header }}{{ date_suffix }}
+{% for change_key, changes in entry.changes.items() %}
+
+{% if change_key %}
+### {{ change_key }}
+{% endif %}
+
+{% for change in changes %}
+{% set scope_prefix = "**" ~ change.scope ~ ":** " if change.scope else "" %}
+{% if change_key == "⚠ BREAKING CHANGES" %}
+* {{ scope_prefix }}{{ change.message }}
+{% else %}
+* {{ scope_prefix }}{{ change.message }} ([{{ change.sha1[:7] }}]({{ repo_url }}/commit/{{ change.sha1 }}))
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endfor %}
