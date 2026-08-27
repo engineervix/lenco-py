@@ -196,7 +196,7 @@ if result.collection.status == "3ds-auth-required":
 
 ## Phone normalization
 
-Lenco's mobile money APIs expect a Zambian number in local `0XXXXXXXXX` shape. `normalize_zambian_phone()` gets you there from `+260...`, `260...`, or a spaced local number, and rejects anything that isn't a valid Zambian mobile number (including landlines):
+Lenco's mobile money APIs expect a Zambian number in local `0XXXXXXXXX` shape. `normalize_zambian_phone()` converts `+260...`, `260...`, and spaced local numbers to that shape. It rejects anything that is not a valid Zambian mobile number, including landlines:
 
 ```python
 from lenco.phone import normalize_zambian_phone
@@ -205,7 +205,7 @@ normalize_zambian_phone("+260966123456")  # "0966123456"
 normalize_zambian_phone("0211234567")     # ValueError — landline, not mobile
 ```
 
-It's standalone — no client involved — so call it wherever you collect a phone number. See [Phone normalization](https://engineervix.github.io/lenco-py/guide/phone-normalization).
+It is a standalone function with no client involved, so you can call it wherever you collect a phone number. See [Phone normalization](https://engineervix.github.io/lenco-py/guide/phone-normalization).
 
 ## Error handling
 
