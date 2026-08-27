@@ -1,6 +1,47 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
+  "extends": ["config:recommended"],
+  "timezone": "Africa/Lusaka",
+  "schedule": ["every weekend"],
+  "pin": {
+    "automerge": true,
+    "labels": ["dependencies"]
+  },
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "python deps use build(deps): ...",
+      "matchCategories": ["python"],
+      "semanticCommitType": "build"
+    },
+    {
+      "description": "the 'dev' extra is a dev dependency -> build(deps-dev): ...; 'card'/'phone' extras stay build(deps):, since they ship to users who opt in",
+      "matchCategories": ["python"],
+      "matchJsonata": ["managerData.depGroup = 'dev'"],
+      "semanticCommitScope": "deps-dev"
+    },
+    {
+      "matchCategories": ["python"],
+      "labels": ["dependencies", "python"],
+      "matchUpdateTypes": ["patch", "pin", "digest"],
+      "automerge": true
+    },
+    {
+      "description": "docs/package.json only has devDependencies -> build(deps-dev): ...",
+      "matchDepTypes": ["devDependencies"],
+      "automerge": true,
+      "labels": ["dependencies"],
+      "semanticCommitType": "build",
+      "semanticCommitScope": "deps-dev"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["patch", "pin", "digest"],
+      "automerge": true,
+      "semanticCommitType": "ci"
+    }
   ]
 }
