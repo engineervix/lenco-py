@@ -52,6 +52,7 @@ export default defineConfig({
           { text: "Retries", link: "/guide/retries" },
           { text: "Framework recipes", link: "/guide/frameworks" },
           { text: "Card collections", link: "/guide/card-collections" },
+          { text: "Phone normalization", link: "/guide/phone-normalization" },
         ],
       },
       {
