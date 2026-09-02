@@ -38,8 +38,11 @@ explicitly if which side pays the fee matters to you.
 
 ## Card collection
 
-See [Card collections](/guide/card-collections) — payloads are JWE-encrypted,
-and the result may carry a 3-D Secure redirect.
+See [Card collections](/guide/card-collections) for the direct API. The
+direct API uses JWE-encrypted payloads, and PCI DSS scope becomes your
+responsibility. The result can carry a 3-D Secure redirect. For an
+alternative with no PCI DSS scope, see the popup widget note at the top of
+that same page.
 
 ## Verify a payment
 

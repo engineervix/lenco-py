@@ -161,7 +161,11 @@ Event types: `transfer.successful`, `transfer.failed`, `collection.successful`, 
 
 ## Card collections (PCI DSS)
 
-Card payloads are JWE-encrypted end-to-end. The SDK fetches a fresh RSA key per payload (Lenco rotates keys):
+Lenco's popup widget is an alternative with no PCI DSS scope. It collects
+the card outside your app. See [Card collections](https://engineervix.github.io/lenco-py/guide/card-collections#the-popup-widget-an-alternative-with-no-pci-dss-scope)
+for both options. The example that follows uses the direct API. Card
+payloads are JWE-encrypted end-to-end, and the SDK fetches a fresh RSA key
+for each payload. Lenco rotates the key each time:
 
 ```python
 from lenco import LencoClient

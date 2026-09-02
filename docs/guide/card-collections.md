@@ -4,7 +4,18 @@ Charging a customer's debit/credit card involves cardholder PII, so Lenco
 requires **PCI DSS compliance** on your side and encrypts the request payload
 end-to-end with JWE. The SDK handles the encryption mechanics.
 
-Requires the `card` extra:
+## The popup widget: an alternative with no PCI DSS scope
+
+This page describes the direct API. With the direct API, you build the
+card form, and PCI DSS compliance becomes your responsibility. Most
+integrations do not need this. Lenco also offers a client-side popup
+widget (`LencoPay.getPaid()`, loaded from `pay.lenco.co`). The widget
+collects the card inside Lenco's own script. Card data never reaches your
+form or your server. See [Accept Payments](https://lenco-api.readme.io/v2.0/reference/accept-payments)
+for the widget. The widget is outside this SDK. Both paths end with the
+same server-side call: [`get_by_reference`](/reference/collections#verify-a-payment).
+
+The rest of this page describes the direct API. It requires the `card` extra:
 
 ```bash
 pip install "lenco-py[card]"
